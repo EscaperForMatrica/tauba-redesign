@@ -1319,8 +1319,8 @@ renderTours();
   } catch (_) {}
 })();
 </script>
-<!-- 3D-Кааба (three.js): Масджид аль-Харам в миниатюре — Кааба, Хиджр Исмаил,
-     Макам Ибрахим, мраморный Матаф и паломники. При прокрутке вид облетает
+<!-- 3D-Кааба (three.js): Масджид аль-Харам в миниатюре — Кааба на мраморном постаменте
+     (как на образце владельца), мраморный Матаф и паломники. При прокрутке вид облетает
      Каабу, а паломники идут вокруг неё против часовой стрелки (таваф).
      Надписи — только Шахада, «الله أكبر», «سبحان الله», «الحمد لله» (шрифт Amiri).
      Пока сцена грузится (и если WebGL недоступен), виден готовый снимок этой же сцены. -->
@@ -1328,6 +1328,7 @@ renderTours();
 <script type="module">
 import * as THREE from 'three';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const stage = document.querySelector('.kaaba-stage');
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1374,7 +1375,7 @@ function build(withText) {
   // ---------- Кааба в стиле образца: чёрная кисва, рельефное золото, мраморный постамент ----------
   // Орнамент только геометрический и растительный — без букв и надписей.
   const H = 13.1, W = 12, D = 10.8;            // высота, ширина грани с дверью, глубина
-  const PLINTH = 0.85, PL_PAD = 1.6;            // мраморный постамент: высота и выступ
+  const PLINTH = 0.7, PL_PAD = 2.4;             // мраморный постамент: тонкий и широкий, как на образце
   const PPM = innerWidth < 720 ? 72 : 112;     // точек текстуры на метр
   const GOLD_STOPS = [[0, '#8A6418'], [.24, '#DDB247'], [.5, '#FCE9A8'], [.7, '#E8C25E'], [1, '#8A6418']];   // ярко-жёлтое золото, как на образце
 
@@ -1543,15 +1544,30 @@ function build(withText) {
   }
   function roofFace() {
     const P = pair(Math.round(W * PPM), Math.round(D * PPM)), {cx, w, h} = P;
-    cx.fillStyle = '#0A0A0C'; cx.fillRect(0, 0, w, h);
+    cx.fillStyle = '#050506'; cx.fillRect(0, 0, w, h);
     const g = P.gold(0, h), m = Math.min(w, h);
-    P.draw(rect(w * .1, h * .1, w * .8, h * .8), {stroke: g, lw: m * .018});
-    P.draw(rect(w * .13, h * .13, w * .74, h * .74), {stroke: g, lw: m * .006});
-    vines(P, w * .16, h * .14, w * .68, h * .07, g, w * .68 / 6);
-    vines(P, w * .16, h * .79, w * .68, h * .07, g, w * .68 / 6);
-    rosette(P, w / 2, h / 2, m * .2, g);
-    P.draw(circle(w / 2, h / 2, m * .26), {stroke: g, lw: m * .008});
-    for (const [x, y] of [[.2, .27], [.8, .27], [.2, .73], [.8, .73]]) P.draw(starPath(w * x, h * y, m * .045, 8, .45), {fill: g});
+    // широкая рамка, внутри сплошная вязь
+    const o = m * .08, i = m * .2;
+    P.draw(rect(o, o, w - 2 * o, h - 2 * o), {stroke: g, lw: m * .014});
+    P.draw(rect(i, i, w - 2 * i, h - 2 * i), {stroke: g, lw: m * .01});
+    for (const [x, y, ww, hh] of [[o, o, w - 2 * o, i - o], [o, h - i, w - 2 * o, i - o], [o, i, i - o, h - 2 * i], [w - i, i, i - o, h - 2 * i]])
+      filigree(P, x + m * .006, y + m * .006, ww - m * .012, hh - m * .012, g, (i - o) * .42);
+    for (const [x, y] of [[o, o], [w - o, o], [o, h - o], [w - o, h - o]]) P.draw(starPath(x, y, m * .05, 8, .45), {fill: g});
+    // поле внутри рамки: тонкая вязь, по углам — веера
+    filigree(P, i + m * .01, i + m * .01, w - 2 * i - m * .02, h - 2 * i - m * .02, g, m * .07);
+    cx.save(); cx.globalAlpha = .7; cx.fillStyle = '#050506';
+    cx.beginPath(); cx.arc(w / 2, h / 2, m * .27, 0, Math.PI * 2); cx.fill(); cx.restore();
+    // медальон: кольца, лепестки по кругу, в центре — Шахада в две строки
+    P.draw(circle(w / 2, h / 2, m * .27), {stroke: g, lw: m * .014});
+    P.draw(circle(w / 2, h / 2, m * .245), {stroke: g, lw: m * .005});
+    for (let k = 0; k < 24; k++) {
+      const a = k * Math.PI / 12, r1 = m * .25, r2 = m * .27;
+      P.draw(circle(w / 2 + Math.cos(a) * (r1 + r2) / 2, h / 2 + Math.sin(a) * (r1 + r2) / 2, m * .006), {fill: g});
+    }
+    if (withText) {
+      arText(P, 'لا إله إلا الله', w / 2, h / 2 - m * .065, m * .36, m * .11, g, .06);
+      arText(P, 'محمد رسول الله', w / 2, h / 2 + m * .075, m * .36, m * .11, g, .06);
+    } else rosette(P, w / 2, h / 2, m * .2, g);
     return P;
   }
   const material = P => {
@@ -1560,11 +1576,12 @@ function build(withText) {
       roughness: 1, metalness: 1, envMapIntensity: 1.7, sheen: .3, sheenColor: new THREE.Color(0x1E1E23), sheenRoughness: .5,
       specularIntensity: .28});   // ткань почти без бликов — Кааба остаётся чёрной; на золото не влияет
   };
-  const DOOR_X = 2.5, DW = 2.5;                // центр двери от левого (восточного) угла, ширина
+  // Дверь — у восточного угла грани (как у настоящей Каабы и на образце: сразу за центральным ребром).
+  const DW = 3.3, DOOR_X = 2.9;                 // центр двери от левого края грани, ширина (как на образце)
   const sideD = material(sideFace(D)), sideW = material(sideFace(W)), roofM = material(roofFace());
   const sideDoor = material(sideFace(W, [DOOR_X - DW / 2 - .3, DOOR_X + DW / 2 + .3]));
   const plain = new THREE.MeshStandardMaterial({color: 0x0A0A0C, roughness: .9});
-  const kaaba = new THREE.Mesh(new THREE.BoxGeometry(W, H, D), [sideD, sideD, roofM, plain, sideDoor, sideW]);
+  const kaaba = new THREE.Mesh(new RoundedBoxGeometry(W, H, D, 4, .18), [sideD, sideD, roofM, plain, sideDoor, sideW]);
   kaaba.position.y = PLINTH + H / 2;
   kaaba.castShadow = true; kaaba.receiveShadow = true;
   scene.add(kaaba);
@@ -1592,12 +1609,12 @@ function build(withText) {
   }
   const marbleTex = tex(mc);
   const marble = new THREE.MeshStandardMaterial({map: marbleTex, roughness: .32, envMapIntensity: .8});
-  const plinth = new THREE.Mesh(new THREE.BoxGeometry(W + PL_PAD * 2, PLINTH, D + PL_PAD * 2), marble);
+  const plinth = new THREE.Mesh(new RoundedBoxGeometry(W + PL_PAD * 2, PLINTH, D + PL_PAD * 2, 3, .12), marble);
   plinth.position.y = PLINTH / 2; plinth.castShadow = true; plinth.receiveShadow = true;
   scene.add(plinth);
 
   // Дверь: высокая золотая панель у восточного угла, снизу — тёплое свечение
-  const DH = H * (LATTICE - BAND[1]) - .35;
+  const DH = H * (1 - BAND[1]) - .45;            // от постамента до пояса, как на образце
   const DP = pair(Math.round(DW * PPM * 1.6), Math.round(DH * PPM * 1.6));
   {
     const {cx, w, h} = DP, g = DP.gold(0, h);
@@ -1606,17 +1623,17 @@ function build(withText) {
     const dark = '#6A4813';
     DP.draw(rect(w * .05, h * .025, w * .9, h * .95), {stroke: dark, lw: w * .025, relief: 40});
     DP.draw(rect(w * .12, h * .05, w * .76, h * .9), {stroke: dark, lw: w * .01, relief: 40});
-    for (let i = 0; i < 5; i++) rosette(DP, w / 2, h * (.13 + i * .185), w * .26, dark);
+    for (let i = 0; i < 6; i++) rosette(DP, w / 2, h * (.1 + i * .16), Math.min(w * .28, h * .066), dark);
     DP.draw(rect(w / 2 - w * .006, h * .05, w * .012, h * .9), {fill: dark, relief: 40});
   }
   const [ec, ex] = cnv(64, 256);
   const eg = ex.createLinearGradient(0, 0, 0, 256);
-  eg.addColorStop(0, '#000'); eg.addColorStop(.72, '#000'); eg.addColorStop(1, '#FFB347');
+  eg.addColorStop(0, '#000'); eg.addColorStop(.8, '#000'); eg.addColorStop(1, '#FFB347');
   ex.fillStyle = eg; ex.fillRect(0, 0, 64, 256);
   const doorMat = material(DP);
   Object.assign(doorMat, {emissive: new THREE.Color(0xFFB347), emissiveMap: tex(ec), emissiveIntensity: 1.4});
   const door = new THREE.Mesh(new THREE.BoxGeometry(DW, DH, .35), doorMat);
-  door.position.set(-W / 2 + DOOR_X, PLINTH + H * (1 - LATTICE) + DH / 2, D / 2 + .17);
+  door.position.set(-W / 2 + DOOR_X, PLINTH + .05 + DH / 2, D / 2 + .17);
   door.castShadow = true;
   scene.add(door);
   const frameGold = new THREE.MeshStandardMaterial({color: 0xE2BC66, metalness: 1, roughness: .2, envMapIntensity: 1.8});
@@ -1631,34 +1648,8 @@ function build(withText) {
     scene.add(ring);
   }
   const doorGlow = new THREE.PointLight(0xFFB347, 18, 9, 2);
-  doorGlow.position.set(door.position.x, PLINTH + H * (1 - LATTICE) + .4, D / 2 + 1.2);
+  doorGlow.position.set(door.position.x, PLINTH + .5, D / 2 + 1.2);
   scene.add(doorGlow);
-
-  const HX = W / 2 + PL_PAD + 0.6;              // Хиджр Исмаил — за постаментом
-
-  // Хиджр Исмаил — полукруглая мраморная стена у северо-западной грани
-  const arc = new THREE.Shape();
-  arc.absarc(0, 0, 8.0, -Math.PI / 2, Math.PI / 2, false);
-  arc.absarc(0, 0, 7.0, Math.PI / 2, -Math.PI / 2, true);
-  const hijrGeo = new THREE.ExtrudeGeometry(arc, {depth: 1.3, bevelEnabled: true, bevelSize: .08, bevelThickness: .08, bevelSegments: 2, curveSegments: 48});
-  hijrGeo.rotateX(-Math.PI / 2);
-  const hijr = new THREE.Mesh(hijrGeo, marble);
-  hijr.position.set(HX, 0, 0);
-  hijr.castShadow = true; hijr.receiveShadow = true;
-  scene.add(hijr);
-
-  // Макам Ибрахим — золотой купол на мраморном постаменте напротив двери
-  const gold = new THREE.MeshStandardMaterial({color: 0xD9AE58, metalness: 1, roughness: .28, envMapIntensity: 1.3});
-  const maqam = new THREE.Group();
-  const ped = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.1, 0.55, 32), marble); ped.position.y = .28;
-  const cage = new THREE.Mesh(new THREE.CylinderGeometry(.72, .72, 1.5, 8, 1, true),
-    new THREE.MeshStandardMaterial({color: 0xC9A04A, metalness: .9, roughness: .35, transparent: true, opacity: .55, side: THREE.DoubleSide}));
-  cage.position.y = .55 + .75;
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(.78, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), gold); dome.position.y = .55 + 1.5;
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(.12, .5, 12), gold); tip.position.y = .55 + 1.5 + .95;
-  for (const p of [ped, cage, dome, tip]) { p.castShadow = true; maqam.add(p); }
-  maqam.position.set(-2.4, 0, D / 2 + 8.2);
-  scene.add(maqam);
 
   // Матаф — белый мрамор, к краям плавно растворяется в странице
   const [fc, fx] = cnv(1024, 1024);
@@ -1694,7 +1685,7 @@ function build(withText) {
   const COUNT = innerWidth < 720 ? 300 : 600;
   const people = [];
   for (let i = 0; i < COUNT; i++) {
-    const r = 11.2 + Math.pow(Math.random(), 1.7) * 21;   // гуще всего у постамента
+    const r = 12.6 + Math.pow(Math.random(), 1.7) * 20;   // гуще всего у постамента
     people.push({r, a0: Math.random() * Math.PI * 2, v: .8 + Math.random() * .45, ph: Math.random() * 6.28,
       g: Math.random() < groups[0].share ? 0 : Math.random() < .64 ? 1 : 2, s: .92 + Math.random() * .16});
   }
@@ -1712,8 +1703,7 @@ function build(withText) {
     for (const p of people) {
       // против часовой стрелки, если смотреть сверху: угол растёт, z = -r·sin
       const a = p.a0 + walk * p.v * (16 / p.r);
-      // Хиджр Исмаил обходят снаружи: у северо-западной грани круг раздувается
-      const r = Math.max(p.r, HX + 8.9 * Math.max(0, Math.cos(a)) + (p.r - 11.2) * .6);
+      const r = p.r;
       const x = r * Math.cos(a), z = -r * Math.sin(a);
       const bob = Math.abs(Math.sin(walk * 9 * p.v + p.ph)) * .05;
       q.setFromAxisAngle(up, a);
@@ -1739,8 +1729,8 @@ function build(withText) {
   scene.add(rim);
 
   const camera = new THREE.PerspectiveCamera(24, 1, 1, 500);
-  const target = new THREE.Vector3(0, 5.6, 0);
-  const DIST = innerWidth < 720 ? 82 : 72, ELEV = THREE.MathUtils.degToRad(20), AZ0 = THREE.MathUtils.degToRad(-36);
+  const target = new THREE.Vector3(0, 6.2, 0);
+  const DIST = innerWidth < 720 ? 76 : 66, ELEV = THREE.MathUtils.degToRad(27), AZ0 = THREE.MathUtils.degToRad(-52);
   function placeCamera(s) {
     const az = AZ0 + s * 0.0011;
     camera.position.set(DIST * Math.cos(ELEV) * Math.sin(az), DIST * Math.sin(ELEV), DIST * Math.cos(ELEV) * Math.cos(az));

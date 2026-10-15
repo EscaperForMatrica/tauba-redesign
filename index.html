@@ -1376,7 +1376,7 @@ function build(withText) {
   const H = 13.1, W = 12, D = 10.8;            // высота, ширина грани с дверью, глубина
   const PLINTH = 0.85, PL_PAD = 1.6;            // мраморный постамент: высота и выступ
   const PPM = innerWidth < 720 ? 72 : 112;     // точек текстуры на метр
-  const GOLD_STOPS = [[0, '#7A5418'], [.22, '#C99A3E'], [.48, '#F6DD98'], [.66, '#D9AE55'], [1, '#7A5418']];
+  const GOLD_STOPS = [[0, '#8A6418'], [.24, '#DDB247'], [.5, '#FCE9A8'], [.7, '#E8C25E'], [1, '#8A6418']];   // ярко-жёлтое золото, как на образце
 
   // Две «кисти» на два холста: цвет и данные (R — рельеф, G — шероховатость, B — металл).
   function pair(w, h) {
@@ -1435,16 +1435,36 @@ function build(withText) {
     for (let x = x0; x < x0 + w; x += step) P.draw(circle(x, mid, h * .07), {fill: g});
   }
 
-  function arText(P, text, x, y, maxW, maxH, fill) {
+  function arText(P, text, x, y, maxW, maxH, fill, bold = .05) {
     const {cx, dx} = P;
     cx.font = '700 100px Amiri';
     const m = cx.measureText(text), th = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
     const size = 100 * Math.min(maxW / m.width, maxH / th);
     const yy = y + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2 * size / 100;
     for (const c of [cx, dx]) { c.save(); c.font = `700 ${size}px Amiri`; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.direction = 'rtl'; }
-    cx.fillStyle = fill; cx.fillText(text, x, yy);
-    cx.lineWidth = Math.max(1, size * .025); cx.strokeStyle = 'rgba(80,55,14,.55)'; cx.strokeText(text, x, yy);
-    dx.fillStyle = 'rgb(255,70,255)'; dx.fillText(text, x, yy);
+    // золото «гуще»: заливка + контур тем же золотом (буквы плотнее, как вышивка), тонкая тёмная кромка
+    cx.lineJoin = 'round'; cx.lineWidth = Math.max(1.5, size * bold);
+    cx.strokeStyle = fill; cx.strokeText(text, x, yy); cx.fillStyle = fill; cx.fillText(text, x, yy);
+    cx.lineWidth = Math.max(1, size * .012); cx.strokeStyle = 'rgba(70,48,12,.6)'; cx.strokeText(text, x, yy);
+    dx.lineJoin = 'round'; dx.lineWidth = Math.max(1.5, size * bold);
+    dx.strokeStyle = dx.fillStyle = 'rgb(255,70,255)'; dx.strokeText(text, x, yy); dx.fillText(text, x, yy);
+    cx.restore(); dx.restore();
+  }
+  function filigree(P, x0, y0, w, h, g, cell) {
+    const {cx, dx} = P;
+    const p = new Path2D();
+    for (let y = y0 + cell / 2, row = 0; y < y0 + h; y += cell, row++) {
+      for (let x = x0 + (row % 2 ? cell : cell / 2); x < x0 + w; x += cell) {
+        const r = cell * .34;
+        p.moveTo(x + r, y); p.arc(x, y, r, 0, Math.PI * 1.5);                       // завиток
+        p.moveTo(x, y - r); p.quadraticCurveTo(x + cell * .5, y - cell * .55, x + cell * .5, y);   // стебель к соседу
+        p.moveTo(x - r * .5, y + r * .2); p.arc(x - r * .5, y + r * .2, r * .32, Math.PI, Math.PI * 2.6); // малый завиток
+      }
+    }
+    cx.save(); dx.save();
+    const clip = new Path2D(); clip.rect(x0, y0, w, h); cx.clip(clip); dx.clip(clip);
+    cx.globalAlpha = .78; cx.lineWidth = Math.max(1, cell * .075); cx.strokeStyle = g; cx.stroke(p);
+    dx.lineWidth = Math.max(1, cell * .07); dx.strokeStyle = 'rgb(150,90,230)'; dx.stroke(p);
     cx.restore(); dx.restore();
   }
   const BAND = [.185, .315], PANELS = [.35, .47], LATTICE = .87;   // доли высоты сверху
@@ -1466,15 +1486,16 @@ function build(withText) {
     for (const yy of [by + h * .02, by + bh - h * .024]) P.draw(rect(0, yy, w, h * .004), {fill: g});
     const innerTop = by + h * .028, innerH = bh - h * .056;
     if (withText) {
-      // Шахада целиком в каждом отрезке; розетки на стыках (на углах — пополам, как продолжение)
-      // одна крупная Шахада по центру грани, по бокам — завитки, на углах — розетки
-      for (const x of [0, w]) rosette(P, x, by + bh / 2, bh * .3, g);
-      const tw = Math.min(w * .74, innerH * 8.2);
-      arText(P, SHAHADA, w / 2, by + bh / 2, tw, innerH * .96, g);
-      const side = (w - tw) / 2 - bh * .55;
-      if (side > bh * .6) {
-        vines(P, bh * .4, innerTop, side, innerH, g, side / Math.max(1, Math.round(side / (bh * 1.3))));
-        vines(P, w - bh * .4 - side, innerTop, side, innerH, g, side / Math.max(1, Math.round(side / (bh * 1.3))));
+      // пояс сплошь в золоте: тонкая вязь фоном, Шахада дважды на грани (каждая целиком),
+      // розетки на стыках и на углах (на углах — пополам, как продолжение на соседнюю грань)
+      filigree(P, 0, innerTop, w, innerH, g, innerH * .42);
+      const k = 2, slot = w / k;
+      for (let i = 0; i <= k; i++) rosette(P, i * slot, by + bh / 2, bh * .32, g);
+      for (let i = 0; i < k; i++) {
+        // под надписью — тёмная подложка, чтобы буквы читались поверх вязи
+        const tx = (i + .5) * slot, tw = slot - bh * 1.15;
+        cx.save(); cx.globalAlpha = .55; cx.fillStyle = '#060504'; cx.fillRect(tx - tw / 2, innerTop + innerH * .08, tw, innerH * .84); cx.restore();
+        arText(P, SHAHADA, tx, by + bh / 2, tw * .96, innerH * .92, g, .06);
       }
       // надпись в верхнем углу грани, как на образце
       arText(P, PHRASES[0], w * .86, h * .1, w * .2, h * .055, P.gold(h * .07, h * .13));
@@ -1497,13 +1518,19 @@ function build(withText) {
       const n = Math.max(1, Math.round(L / (PPM * 3.1))), pw = (L - gap * (n + 1)) / n;
       for (let i = 0; i < n; i++) {
         const x = s0 + gap + i * (pw + gap);
-        P.draw(rect(x, py, pw, ph), {stroke: pg, lw: h * .006});
-        P.draw(rect(x + h * .008, py + h * .008, pw - h * .016, ph - h * .016), {stroke: pg, lw: h * .0025});
-        P.draw(rect(x + h * .008, py + h * .008, pw - h * .016, ph - h * .016), {fill: 'rgba(201,153,62,.12)'});
-        if (withText) arText(P, PHRASES[phrase++ % PHRASES.length], x + pw / 2, py + ph / 2, pw * .78, ph * .56, pg);
-        else vines(P, x + h * .02, py + h * .015, pw - h * .04, ph - h * .03, pg, (pw - h * .04) / 2.5);
-        if (i < n - 1) P.draw(diamond(x + pw + gap / 2, py + ph / 2, gap * .22, ph * .22), {fill: pg});
+        const ix = x + h * .01, iy = py + h * .01, iw = pw - h * .02, ih = ph - h * .02;
+        P.draw(rect(x, py, pw, ph), {stroke: pg, lw: h * .009});
+        P.draw(rect(ix, iy, iw, ih), {stroke: pg, lw: h * .003});
+        for (const [cxp, cyp] of [[ix, iy], [ix + iw, iy], [ix, iy + ih], [ix + iw, iy + ih]]) P.draw(circle(cxp, cyp, h * .006), {fill: pg});
+        filigree(P, ix + h * .004, iy + h * .004, iw - h * .008, ih - h * .008, pg, ih * .3);
+        if (withText) {
+          cx.save(); cx.globalAlpha = .5; cx.fillStyle = '#060504'; cx.fillRect(ix + iw * .08, iy + ih * .18, iw * .84, ih * .64); cx.restore();
+          arText(P, PHRASES[phrase++ % PHRASES.length], x + pw / 2, py + ph / 2, pw * .82, ph * .66, pg, .06);
+        } else vines(P, x + h * .02, py + h * .015, pw - h * .04, ph - h * .03, pg, (pw - h * .04) / 2.5);
+        if (i < n - 1) P.draw(diamond(x + pw + gap / 2, py + ph / 2, gap * .3, ph * .26), {fill: pg});
       }
+      // ромбы и по краям ряда панелей, как на образце
+      for (const ex of [s0 + gap / 2, s1 - gap / 2]) P.draw(diamond(ex, py + ph / 2, gap * .24, ph * .2), {fill: pg});
     }
     // золотая «плитка» внизу
     const ly = h * LATTICE, lh = h - ly, lg = P.gold(ly, h);

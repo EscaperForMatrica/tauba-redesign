@@ -1373,11 +1373,11 @@ function build(withText) {
   const cnv = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
 
   // ---------- Кааба в стиле образца: чёрная кисва, рельефное золото, мраморный постамент ----------
-  // Орнамент только геометрический и растительный — без букв и надписей.
   const H = 13.1, W = 12, D = 10.8;            // высота, ширина грани с дверью, глубина
   const PLINTH = 0.7, PL_PAD = 2.4;             // мраморный постамент: тонкий и широкий, как на образце
   const PPM = innerWidth < 720 ? 72 : 112;     // точек текстуры на метр
-  const GOLD_STOPS = [[0, '#8A6418'], [.24, '#DDB247'], [.5, '#FCE9A8'], [.7, '#E8C25E'], [1, '#8A6418']];   // ярко-жёлтое золото, как на образце
+  const GOLD_STOPS = [[0, '#76561C'], [.24, '#C99A45'], [.5, '#F2D78C'], [.72, '#D3A851'], [1, '#76561C']];   // тёплое металлическое золото, как на образце
+  const ENGRAVE = 'rgba(74,48,12,.92)';         // гравировка тёмным по золоту
 
   // Две «кисти» на два холста: цвет и данные (R — рельеф, G — шероховатость, B — металл).
   function pair(w, h) {
@@ -1436,7 +1436,7 @@ function build(withText) {
     for (let x = x0; x < x0 + w; x += step) P.draw(circle(x, mid, h * .07), {fill: g});
   }
 
-  function arText(P, text, x, y, maxW, maxH, fill, bold = .05) {
+  function arText(P, text, x, y, maxW, maxH, fill, bold = .05, data = 'rgb(255,70,255)') {
     const {cx, dx} = P;
     cx.font = '700 100px Amiri';
     const m = cx.measureText(text), th = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
@@ -1448,8 +1448,35 @@ function build(withText) {
     cx.strokeStyle = fill; cx.strokeText(text, x, yy); cx.fillStyle = fill; cx.fillText(text, x, yy);
     cx.lineWidth = Math.max(1, size * .012); cx.strokeStyle = 'rgba(70,48,12,.6)'; cx.strokeText(text, x, yy);
     dx.lineJoin = 'round'; dx.lineWidth = Math.max(1.5, size * bold);
-    dx.strokeStyle = dx.fillStyle = 'rgb(255,70,255)'; dx.strokeText(text, x, yy); dx.fillText(text, x, yy);
+    dx.strokeStyle = dx.fillStyle = data; dx.strokeText(text, x, yy); dx.fillText(text, x, yy);
     cx.restore(); dx.restore();
+  }
+  function arabesque(P, x0, y0, w, h, color, cellTarget, {alpha = 1, lw = .055, data = 'rgb(200,80,255)'} = {}) {
+    const {cx, dx} = P;
+    const nx = Math.max(1, Math.round(w / cellTarget)), ny = Math.max(1, Math.round(h / cellTarget));
+    const cw = w / nx, ch = h / ny, c = Math.min(cw, ch);
+    const lines = new Path2D(), solid = new Path2D();
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const X = x0 + (i + .5) * cw, Y = y0 + (j + .5) * ch, r = c * .2;
+      for (const [ox, oy] of [[r, 0], [-r, 0], [0, r], [0, -r]]) { lines.moveTo(X + ox + r, Y + oy); lines.arc(X + ox, Y + oy, r, 0, Math.PI * 2); }
+      for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {           // дуги в углах клетки — сцепка с соседями
+        const CX = X + sx * cw / 2, CY = Y + sy * ch / 2, R = c * .27, mid = Math.atan2(-sy, -sx);
+        lines.moveTo(CX + R * Math.cos(mid - Math.PI / 4), CY + R * Math.sin(mid - Math.PI / 4));
+        lines.arc(CX, CY, R, mid - Math.PI / 4, mid + Math.PI / 4);
+      }
+      solid.addPath(starPath(X, Y, c * .1, 8, .45, Math.PI / 8));
+      for (const [mx, my] of [[X, Y - ch / 2], [X, Y + ch / 2], [X - cw / 2, Y], [X + cw / 2, Y]]) solid.addPath(diamond(mx, my, c * .045, c * .045));
+    }
+    cx.save(); dx.save();
+    const clip = new Path2D(); clip.rect(x0, y0, w, h); cx.clip(clip); dx.clip(clip);
+    cx.globalAlpha = alpha; cx.lineWidth = Math.max(1, c * lw); cx.strokeStyle = cx.fillStyle = color; cx.stroke(lines); cx.fill(solid);
+    dx.lineWidth = Math.max(1, c * lw); dx.strokeStyle = dx.fillStyle = data; dx.stroke(lines); dx.fill(solid);
+    cx.restore(); dx.restore();
+  }
+  // Цепочка мелких ромбов между тонкими линиями — бордюр поясов и рамок
+  function chain(P, x0, y, w, size, g) {
+    const n = Math.max(1, Math.round(w / (size * 2.2))), step = w / n;
+    for (let i = 0; i < n; i++) P.draw(diamond(x0 + (i + .5) * step, y, size * .55, size * .45), {fill: g});
   }
   function filigree(P, x0, y0, w, h, g, cell) {
     const {cx, dx} = P;
@@ -1470,47 +1497,54 @@ function build(withText) {
   }
   const BAND = [.185, .315], PANELS = [.35, .47], LATTICE = .87;   // доли высоты сверху
   function sideFace(widthM, doorSpan = null) {
-    const P = pair(Math.round(widthM * PPM), Math.round(H * PPM)), {cx, w, h} = P;
-    // чёрная ткань с едва заметным узором и складками
+    const P = pair(Math.round(widthM * PPM), Math.round(H * PPM)), {cx, dx, w, h} = P;
+    // чёрная кисва: глубокий чёрный, тонкие вертикальные складки (и в рельефе), едва видное плетение
     cx.fillStyle = '#040405'; cx.fillRect(0, 0, w, h);
-    cx.strokeStyle = 'rgba(255,255,255,.026)'; cx.lineWidth = 2;
+    for (let i = 0; i < w; i += 4) {
+      const f = Math.sin(i * .021) * .6 + Math.sin(i * .057 + 1.3) * .4;
+      cx.fillStyle = `rgba(255,255,255,${(f * .5 + .5) * .012})`; cx.fillRect(i, 0, 4, h);
+      dx.fillStyle = `rgb(${Math.round(14 + f * 12)},215,0)`; dx.fillRect(i, 0, 4, h);
+    }
+    cx.strokeStyle = 'rgba(255,255,255,.022)'; cx.lineWidth = 2;
     const S = PPM * .7;
     for (let row = 0, yy = 0; yy < h + S; row++, yy += S) for (let xx = (row % 2 ? S / 2 : 0) - S; xx < w + S; xx += S) {
       cx.beginPath(); cx.moveTo(xx, yy - S / 2); cx.quadraticCurveTo(xx + S / 2, yy, xx, yy + S / 2); cx.quadraticCurveTo(xx - S / 2, yy, xx, yy - S / 2); cx.stroke();
-      P.dx.strokeStyle = 'rgb(38,200,0)'; P.dx.lineWidth = 3; P.dx.beginPath(); P.dx.moveTo(xx, yy - S / 2); P.dx.quadraticCurveTo(xx + S / 2, yy, xx, yy + S / 2); P.dx.quadraticCurveTo(xx - S / 2, yy, xx, yy - S / 2); P.dx.stroke();
+      dx.strokeStyle = 'rgb(40,200,0)'; dx.lineWidth = 3; dx.beginPath(); dx.moveTo(xx, yy - S / 2); dx.quadraticCurveTo(xx + S / 2, yy, xx, yy + S / 2); dx.quadraticCurveTo(xx - S / 2, yy, xx, yy - S / 2); dx.stroke();
     }
-    for (let i = 0; i < w; i += 6) { cx.fillStyle = `rgba(255,255,255,${(Math.sin(i * .045) * .5 + .5) * .01})`; cx.fillRect(i, 0, 6, h); }
 
-    // пояс: двойные золотые кромки, розетки и вьющийся орнамент
+    // ---- пояс: толстые кромки, бордюры из ромбов, арабеск фоном, Шахада в картушах, розетки
     const by = h * BAND[0], bh = h * (BAND[1] - BAND[0]), g = P.gold(by, by + bh);
-    for (const yy of [by, by + bh - h * .012]) P.draw(rect(0, yy, w, h * .012), {fill: g});
-    for (const yy of [by + h * .02, by + bh - h * .024]) P.draw(rect(0, yy, w, h * .004), {fill: g});
-    const innerTop = by + h * .028, innerH = bh - h * .056;
+    const e = h * .011, t = h * .0032;
+    P.draw(rect(0, by, w, e), {fill: g}); P.draw(rect(0, by + bh - e, w, e), {fill: g});
+    P.draw(rect(0, by + e + h * .013, w, t), {fill: g}); P.draw(rect(0, by + bh - e - h * .013 - t, w, t), {fill: g});
+    chain(P, 0, by + e + h * .0065, w, h * .009, g); chain(P, 0, by + bh - e - h * .0065, w, h * .009, g);
+    const innerTop = by + e + h * .017, innerH = bh - 2 * (e + h * .017);
+    arabesque(P, 0, innerTop, w, innerH, g, innerH * .5, {alpha: .62});
     if (withText) {
-      // пояс сплошь в золоте: тонкая вязь фоном, Шахада дважды на грани (каждая целиком),
-      // розетки на стыках и на углах (на углах — пополам, как продолжение на соседнюю грань)
-      filigree(P, 0, innerTop, w, innerH, g, innerH * .42);
       const k = 2, slot = w / k;
-      for (let i = 0; i <= k; i++) rosette(P, i * slot, by + bh / 2, bh * .32, g);
       for (let i = 0; i < k; i++) {
-        // под надписью — тёмная подложка, чтобы буквы читались поверх вязи
-        const tx = (i + .5) * slot, tw = slot - bh * 1.15;
-        cx.save(); cx.globalAlpha = .55; cx.fillStyle = '#060504'; cx.fillRect(tx - tw / 2, innerTop + innerH * .08, tw, innerH * .84); cx.restore();
-        arText(P, SHAHADA, tx, by + bh / 2, tw * .96, innerH * .92, g, .06);
+        const tx = (i + .5) * slot, tw = slot - bh * 1.05;
+        const cart = new Path2D(); cart.roundRect(tx - tw / 2, innerTop + innerH * .04, tw, innerH * .92, innerH * .46);
+        cx.save(); cx.fillStyle = 'rgba(5,4,3,.72)'; cx.fill(cart); cx.restore();
+        P.draw(cart, {stroke: g, lw: h * .0028});
+        arText(P, SHAHADA, tx, by + bh / 2, tw * .92, innerH * .86, g, .07);
       }
+      for (let i = 0; i <= k; i++) rosette(P, i * slot, by + bh / 2, bh * .34, g);
       // надпись в верхнем углу грани, как на образце
       arText(P, PHRASES[0], w * .86, h * .1, w * .2, h * .055, P.gold(h * .07, h * .13));
     } else {
-      const unit = bh * 2.2;
-      for (let x = unit / 2; x < w + unit; x += unit) {
-        rosette(P, x, by + bh / 2, bh * .36, g);
-        vines(P, x + bh * .4, innerTop, unit - bh * .8, innerH, g, (unit - bh * .8) / 2);
-      }
+      for (let i = 0; i <= 4; i++) rosette(P, i * w / 4, by + bh / 2, bh * .34, g);
     }
-    // панели под поясом и ромбы между ними
+
+    // ---- панели: двойная рамка с уголками, арабеск фоном, крупная надпись; между — ромбы и вставки
     const py = h * PANELS[0], ph = h * (PANELS[1] - PANELS[0]);
-    const pg = P.gold(py, py + ph), gap = PPM * .55;
-    // отрезки грани для панелей: без места двери
+    const pg = P.gold(py, py + ph), gap = PPM * .6;
+    const insert = (x) => {                                   // ромб с вертикальными штрихами — вставка между панелями
+      P.draw(diamond(x, py + ph / 2, gap * .3, ph * .24), {fill: pg});
+      P.draw(rect(x - h * .0016, py + ph * .06, h * .0032, ph * .16), {fill: pg});
+      P.draw(rect(x - h * .0016, py + ph * .78, h * .0032, ph * .16), {fill: pg});
+      P.draw(circle(x, py + ph / 2, ph * .045), {fill: '#0a0806', relief: 0});
+    };
     const segs = doorSpan ? [[0, doorSpan[0] * PPM], [doorSpan[1] * PPM, w]] : [[0, w]];
     let phrase = 0;
     for (const [s0, s1] of segs) {
@@ -1519,55 +1553,67 @@ function build(withText) {
       const n = Math.max(1, Math.round(L / (PPM * 3.1))), pw = (L - gap * (n + 1)) / n;
       for (let i = 0; i < n; i++) {
         const x = s0 + gap + i * (pw + gap);
-        const ix = x + h * .01, iy = py + h * .01, iw = pw - h * .02, ih = ph - h * .02;
-        P.draw(rect(x, py, pw, ph), {stroke: pg, lw: h * .009});
-        P.draw(rect(ix, iy, iw, ih), {stroke: pg, lw: h * .003});
-        for (const [cxp, cyp] of [[ix, iy], [ix + iw, iy], [ix, iy + ih], [ix + iw, iy + ih]]) P.draw(circle(cxp, cyp, h * .006), {fill: pg});
-        filigree(P, ix + h * .004, iy + h * .004, iw - h * .008, ih - h * .008, pg, ih * .3);
+        const ix = x + h * .009, iy = py + h * .009, iw = pw - h * .018, ih = ph - h * .018;
+        P.draw(rect(x, py, pw, ph), {stroke: pg, lw: h * .008});
+        P.draw(rect(ix, iy, iw, ih), {stroke: pg, lw: h * .0028});
+        for (const [qx, qy] of [[x, py], [x + pw, py], [x, py + ph], [x + pw, py + ph]]) P.draw(rect(qx - h * .007, qy - h * .007, h * .014, h * .014), {fill: pg});
+        arabesque(P, ix + h * .003, iy + h * .003, iw - h * .006, ih - h * .006, pg, ih * .34, {alpha: .55});
         if (withText) {
-          cx.save(); cx.globalAlpha = .5; cx.fillStyle = '#060504'; cx.fillRect(ix + iw * .08, iy + ih * .18, iw * .84, ih * .64); cx.restore();
-          arText(P, PHRASES[phrase++ % PHRASES.length], x + pw / 2, py + ph / 2, pw * .82, ph * .66, pg, .06);
-        } else vines(P, x + h * .02, py + h * .015, pw - h * .04, ph - h * .03, pg, (pw - h * .04) / 2.5);
-        if (i < n - 1) P.draw(diamond(x + pw + gap / 2, py + ph / 2, gap * .3, ph * .26), {fill: pg});
+          const cart = new Path2D(); cart.roundRect(ix + iw * .06, iy + ih * .14, iw * .88, ih * .72, ih * .2);
+          cx.save(); cx.fillStyle = 'rgba(5,4,3,.7)'; cx.fill(cart); cx.restore();
+          arText(P, PHRASES[phrase++ % PHRASES.length], x + pw / 2, py + ph / 2, iw * .8, ih * .62, pg, .07);
+        }
+        if (i < n - 1) insert(x + pw + gap / 2);
       }
-      // ромбы и по краям ряда панелей, как на образце
-      for (const ex of [s0 + gap / 2, s1 - gap / 2]) P.draw(diamond(ex, py + ph / 2, gap * .24, ph * .2), {fill: pg});
+      for (const ex of [s0 + gap / 2, s1 - gap / 2]) insert(ex);
     }
-    // золотая «плитка» внизу
+
+    // ---- нижняя кладка: золотые контуры сегментов, тёмные швы, уголки
     const ly = h * LATTICE, lh = h - ly, lg = P.gold(ly, h);
-    P.draw(rect(0, ly, w, h * .01), {fill: lg});
-    const rows = 2, tile = lh / rows;
-    for (let r = 0; r < rows; r++) for (let x = (r % 2) * tile * .6; x < w; x += tile * 1.2) {
-      P.draw(rect(x + 3, ly + h * .01 + r * tile + 3, tile * 1.2 - 6, tile - 6 - (r ? 0 : h * .005)), {stroke: lg, lw: h * .0035});
+    P.draw(rect(0, ly, w, h * .012), {fill: lg});
+    P.draw(rect(0, ly + h * .016, w, h * .0028), {fill: lg});
+    const rows = 2, top = ly + h * .021, tile = (h - top) / rows, tl = tile * 1.3;
+    for (let r = 0; r < rows; r++) for (let x = -(r % 2) * tl / 2; x < w; x += tl) {
+      const yy = top + r * tile, pad = h * .0035;
+      P.draw(rect(x + pad, yy + pad, tl - pad * 2, tile - pad * 2), {stroke: lg, lw: h * .0042});
+      P.draw(rect(x + pad * 2.6, yy + pad * 2.6, tl - pad * 5.2, tile - pad * 5.2), {stroke: lg, lw: h * .0013});
+      for (const [qx, qy] of [[x + pad, yy + pad], [x + tl - pad, yy + pad], [x + pad, yy + tile - pad], [x + tl - pad, yy + tile - pad]]) P.draw(circle(qx, qy, h * .0035), {fill: lg});
     }
     return P;
   }
   function roofFace() {
-    const P = pair(Math.round(W * PPM), Math.round(D * PPM)), {cx, w, h} = P;
+    const P = pair(Math.round(W * PPM), Math.round(D * PPM)), {cx, dx, w, h} = P;
     cx.fillStyle = '#050506'; cx.fillRect(0, 0, w, h);
-    const g = P.gold(0, h), m = Math.min(w, h);
-    // широкая рамка, внутри сплошная вязь
-    const o = m * .08, i = m * .2;
-    P.draw(rect(o, o, w - 2 * o, h - 2 * o), {stroke: g, lw: m * .014});
-    P.draw(rect(i, i, w - 2 * i, h - 2 * i), {stroke: g, lw: m * .01});
-    for (const [x, y, ww, hh] of [[o, o, w - 2 * o, i - o], [o, h - i, w - 2 * o, i - o], [o, i, i - o, h - 2 * i], [w - i, i, i - o, h - 2 * i]])
-      filigree(P, x + m * .006, y + m * .006, ww - m * .012, hh - m * .012, g, (i - o) * .42);
-    for (const [x, y] of [[o, o], [w - o, o], [o, h - o], [w - o, h - o]]) P.draw(starPath(x, y, m * .05, 8, .45), {fill: g});
-    // поле внутри рамки: тонкая вязь, по углам — веера
-    filigree(P, i + m * .01, i + m * .01, w - 2 * i - m * .02, h - 2 * i - m * .02, g, m * .07);
-    cx.save(); cx.globalAlpha = .7; cx.fillStyle = '#050506';
-    cx.beginPath(); cx.arc(w / 2, h / 2, m * .27, 0, Math.PI * 2); cx.fill(); cx.restore();
-    // медальон: кольца, лепестки по кругу, в центре — Шахада в две строки
-    P.draw(circle(w / 2, h / 2, m * .27), {stroke: g, lw: m * .014});
-    P.draw(circle(w / 2, h / 2, m * .245), {stroke: g, lw: m * .005});
-    for (let k = 0; k < 24; k++) {
-      const a = k * Math.PI / 12, r1 = m * .25, r2 = m * .27;
-      P.draw(circle(w / 2 + Math.cos(a) * (r1 + r2) / 2, h / 2 + Math.sin(a) * (r1 + r2) / 2, m * .006), {fill: g});
+    const m = Math.min(w, h), o = m * .075;
+    const gg = cx.createLinearGradient(o, o, w - o, h - o);
+    for (const [k, col] of GOLD_STOPS) gg.addColorStop(k, col);
+    const carpet = rect(o, o, w - 2 * o, h - 2 * o);
+    P.draw(carpet, {fill: gg});
+    // гравировка по всему ковру
+    arabesque(P, o + m * .07, o + m * .07, w - 2 * o - m * .14, h - 2 * o - m * .14, ENGRAVE, m * .085, {lw: .05, data: 'rgb(40,120,210)'});
+    // бордюр ковра: две тёмные линии и цепочка ромбов
+    for (const d of [m * .02, m * .062]) P.draw(rect(o + d, o + d, w - 2 * (o + d), h - 2 * (o + d)), {stroke: ENGRAVE, lw: m * .006, relief: 30});
+    for (const [x, y, len] of [[o + m * .041, o + m * .041, w - 2 * o - m * .082], [o + m * .041, h - o - m * .041, w - 2 * o - m * .082]])
+      chain(P, x, y, len, m * .022, ENGRAVE);
+    for (const x of [o + m * .041, w - o - m * .041]) {
+      const n = Math.round((h - 2 * o - m * .082) / (m * .048)), step = (h - 2 * o - m * .082) / n;
+      for (let i = 0; i < n; i++) P.draw(diamond(x, o + m * .041 + (i + .5) * step, m * .011, m * .013), {fill: ENGRAVE, relief: 30});
     }
+    for (const [x, y] of [[o + m * .11, o + m * .11], [w - o - m * .11, o + m * .11], [o + m * .11, h - o - m * .11], [w - o - m * .11, h - o - m * .11]])
+      P.draw(starPath(x, y, m * .045, 8, .45), {fill: ENGRAVE, relief: 30});
+    P.draw(carpet, {stroke: P.gold(0, h), lw: m * .012});
+    // медальон: тёмный круг, золотое кольцо с бусинами, Шахада в две строки
+    const R = m * .25, cxm = w / 2, cym = h / 2;
+    cx.save(); cx.fillStyle = '#080605'; cx.beginPath(); cx.arc(cxm, cym, R, 0, Math.PI * 2); cx.fill(); cx.restore();
+    dx.save(); dx.fillStyle = 'rgb(0,200,0)'; dx.beginPath(); dx.arc(cxm, cym, R, 0, Math.PI * 2); dx.fill(); dx.restore();
+    const ring = P.gold(cym - R, cym + R);
+    P.draw(circle(cxm, cym, R), {stroke: ring, lw: m * .016});
+    P.draw(circle(cxm, cym, R * .86), {stroke: ring, lw: m * .005});
+    for (let k = 0; k < 32; k++) { const a = k * Math.PI / 16; P.draw(circle(cxm + Math.cos(a) * R * .93, cym + Math.sin(a) * R * .93, m * .006), {fill: ring}); }
     if (withText) {
-      arText(P, 'لا إله إلا الله', w / 2, h / 2 - m * .065, m * .36, m * .11, g, .06);
-      arText(P, 'محمد رسول الله', w / 2, h / 2 + m * .075, m * .36, m * .11, g, .06);
-    } else rosette(P, w / 2, h / 2, m * .2, g);
+      arText(P, 'لا إله إلا الله', cxm, cym - R * .24, R * 1.3, R * .38, ring, .07);
+      arText(P, 'محمد رسول الله', cxm, cym + R * .3, R * 1.3, R * .38, ring, .07);
+    } else rosette(P, cxm, cym, R * .7, ring);
     return P;
   }
   const material = P => {
@@ -1617,21 +1663,44 @@ function build(withText) {
   const DH = H * (1 - BAND[1]) - .45;            // от постамента до пояса, как на образце
   const DP = pair(Math.round(DW * PPM * 1.6), Math.round(DH * PPM * 1.6));
   {
-    const {cx, w, h} = DP, g = DP.gold(0, h);
-    cx.fillStyle = g; cx.fillRect(0, 0, w, h);
-    DP.dx.fillStyle = 'rgb(150,80,255)'; DP.dx.fillRect(0, 0, w, h);
-    const dark = '#6A4813';
-    DP.draw(rect(w * .05, h * .025, w * .9, h * .95), {stroke: dark, lw: w * .025, relief: 40});
-    DP.draw(rect(w * .12, h * .05, w * .76, h * .9), {stroke: dark, lw: w * .01, relief: 40});
-    for (let i = 0; i < 6; i++) rosette(DP, w / 2, h * (.1 + i * .16), Math.min(w * .28, h * .066), dark);
-    DP.draw(rect(w / 2 - w * .006, h * .05, w * .012, h * .9), {fill: dark, relief: 40});
+    const {cx, dx, w, h} = DP;
+    const gx = cx.createLinearGradient(0, 0, w, 0);               // поперечный перелив металла
+    for (const [k, col] of [[0, '#8A6420'], [.2, '#D9AE55'], [.45, '#F4DC92'], [.55, '#E8C674'], [.8, '#C99A45'], [1, '#8A6420']]) gx.addColorStop(k, col);
+    cx.fillStyle = gx; cx.fillRect(0, 0, w, h);
+    dx.fillStyle = 'rgb(150,75,255)'; dx.fillRect(0, 0, w, h);
+    const eng = (path, lw) => DP.draw(path, {stroke: ENGRAVE, lw, relief: 30});
+    arabesque(DP, w * .06, h * .03, w * .88, h * .94, 'rgba(74,48,12,.32)', w * .16, {lw: .04, data: 'rgb(90,90,230)'});
+    eng(rect(w * .03, h * .012, w * .94, h * .976), w * .022);
+    eng(rect(w * .07, h * .024, w * .86, h * .952), w * .008);
+    // верхний картуш — Басмала
+    const ct = new Path2D(); ct.roundRect(w * .1, h * .04, w * .8, h * .07, h * .03);
+    cx.save(); cx.fillStyle = 'rgba(40,26,6,.85)'; cx.fill(ct); cx.restore();
+    if (withText) arText(DP, 'بسم الله الرحمن الرحيم', w / 2, h * .075, w * .72, h * .05, DP.gold(h * .04, h * .11), .06);
+    // две створки
+    eng(rect(w / 2 - w * .006, h * .125, w * .012, h * .8), w * .01);
+    const L = [['الله أكبر', 'لا إله إلا الله', 'سبحان الله', 'الحمد لله'], ['الله أكبر', 'محمد رسول الله', 'سبحان الله', 'الحمد لله']];
+    for (const [side, x0] of [[0, w * .1], [1, w * .53]]) {
+      const lw = w * .37;
+      for (let r = 0; r < 4; r++) {
+        const y = h * (.135 + r * .195);
+        // панель с надписью
+        const pr = new Path2D(); pr.roundRect(x0, y, lw, h * .075, h * .012);
+        eng(pr, w * .009);
+        if (withText) arText(DP, L[side][r], x0 + lw / 2, y + h * .0375, lw * .84, h * .05, ENGRAVE, .05, 'rgb(25,120,210)');
+        // медальон под панелью
+        rosette(DP, x0 + lw / 2, y + h * .135, Math.min(lw * .36, h * .05), ENGRAVE);
+      }
+    }
+    // нижний бордюр над порогом
+    eng(rect(w * .07, h * .925, w * .86, h * .002), w * .006);
+    chain(DP, w * .08, h * .948, w * .84, h * .014, ENGRAVE);
   }
   const [ec, ex] = cnv(64, 256);
   const eg = ex.createLinearGradient(0, 0, 0, 256);
   eg.addColorStop(0, '#000'); eg.addColorStop(.8, '#000'); eg.addColorStop(1, '#FFB347');
   ex.fillStyle = eg; ex.fillRect(0, 0, 64, 256);
   const doorMat = material(DP);
-  Object.assign(doorMat, {emissive: new THREE.Color(0xFFB347), emissiveMap: tex(ec), emissiveIntensity: 1.4});
+  Object.assign(doorMat, {emissive: new THREE.Color(0xFFB347), emissiveMap: tex(ec), emissiveIntensity: 1.1});
   const door = new THREE.Mesh(new THREE.BoxGeometry(DW, DH, .35), doorMat);
   door.position.set(-W / 2 + DOOR_X, PLINTH + .05 + DH / 2, D / 2 + .17);
   door.castShadow = true;
@@ -1647,7 +1716,9 @@ function build(withText) {
     ring.position.set(door.position.x + dx, door.position.y - DH * .08, D / 2 + .38);
     scene.add(ring);
   }
-  const doorGlow = new THREE.PointLight(0xFFB347, 18, 9, 2);
+  const sill = new THREE.Mesh(new RoundedBoxGeometry(DW + .7, .16, .7, 2, .04), frameGold);   // порог
+  sill.position.set(door.position.x, PLINTH + .08, D / 2 + .35); sill.castShadow = true; scene.add(sill);
+  const doorGlow = new THREE.PointLight(0xFFB347, 14, 9, 2);
   doorGlow.position.set(door.position.x, PLINTH + .5, D / 2 + 1.2);
   scene.add(doorGlow);
 

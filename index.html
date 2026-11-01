@@ -2,13 +2,17 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tauba Tour — Умра с полным сопровождением</title>
 <meta name="description" content="Организуем поездку в Мекку и Медину: перелёт, проживание, гиды и поддержка 24/7.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Amiri:wght@700&display=swap" rel="stylesheet">
+<meta name="robots" content="noindex, nofollow">
+<!-- Шрифты лежат вместе со страницей (без Google Fonts): Montserrat и Amiri, лицензия OFL. -->
+<link rel="preload" href="assets/fonts/montserrat-cyrillic-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<style>@font-face{font-family:'Montserrat';font-style:normal;font-weight:100 900;font-display:swap;src:url(assets/fonts/montserrat-cyrillic-ext-wght-normal.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}
+@font-face{font-family:'Montserrat';font-style:normal;font-weight:100 900;font-display:swap;src:url(assets/fonts/montserrat-cyrillic-wght-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Montserrat';font-style:normal;font-weight:100 900;font-display:swap;src:url(assets/fonts/montserrat-latin-ext-wght-normal.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Montserrat';font-style:normal;font-weight:100 900;font-display:swap;src:url(assets/fonts/montserrat-latin-wght-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Amiri';font-style:normal;font-weight:700;font-display:swap;src:url(assets/fonts/amiri-arabic-700-normal.woff2) format('woff2')}</style>
 <style>
 /* Tauba Tour · «Morning Glass» (по HUDOOR), фирменные цвета Tauba */
 :root{
@@ -447,6 +451,8 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{
 .consent input{width:18px;height:18px;flex:none;margin:1px 0 0;accent-color:#3C808F}
 .consent a{color:#D3EEF1}
 .form .btn{width:100%;margin-top:4px}
+.hp{position:absolute!important;left:-9999px;width:1px;height:1px;overflow:hidden}
+.fnote.ok{background:rgba(37,211,102,.16);color:#E4FFEE}
 .fnote{display:none;padding:12px 14px;border-radius:14px;background:rgba(140,200,210,.14);font:500 13.5px/20px var(--font);color:#D3EEF1}
 .or{display:flex;align-items:center;gap:12px;font:500 13px/18px var(--font);color:#7D999E}
 .or::before,.or::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.12)}
@@ -987,12 +993,14 @@ dialog.sheet::backdrop{background:rgba(3,38,46,.38);-webkit-backdrop-filter:blur
             <form class="form" id="leadForm" novalidate>
               <h3>Оставьте свою заявку!</h3>
               <p>Мы свяжемся с вами в ближайшее время</p>
-              <label>Имя<input name="name" autocomplete="name" placeholder="Как к вам обращаться" required></label>
-              <label>Телефон<input name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+7 ___ ___-__-__" required></label>
-              <label>Сообщение<textarea name="msg" placeholder="Даты, количество человек, пожелания"></textarea></label>
-              <label class="consent"><input type="checkbox" name="consent" required> <span>Даю согласие на обработку персональных данных в соответствии с <a href="https://taubatour.ru/privacy-policy" target="_blank" rel="noopener">политикой конфиденциальности</a></span></label>
+              <label>Имя<input name="tt-name" autocomplete="name" placeholder="Как к вам обращаться" maxlength="80" required></label>
+              <label>Телефон<input name="tt-phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+7 ___ ___-__-__" maxlength="30" required></label>
+              <label>Сообщение<textarea name="tt-message" placeholder="Даты, количество человек, пожелания" maxlength="1500"></textarea></label>
+              <!-- Ловушка для ботов: человек это поле не видит и не заполняет. -->
+              <label class="hp" aria-hidden="true">Сайт<input name="website" tabindex="-1" autocomplete="off"></label>
+              <label class="consent"><input type="checkbox" name="tt-consent" value="1" required> <span>Даю согласие на обработку персональных данных в соответствии с <a href="https://taubatour.ru/privacy-policy" target="_blank" rel="noopener">политикой конфиденциальности</a></span></label>
               <button class="btn btn-light" type="submit">Отправить заявку <svg class="arr" width="16" height="12" viewBox="0 0 16 12" fill="none" aria-hidden="true"><path d="M1 6h13M9 1l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-              <div class="fnote" id="fnote" role="status">Это макет: заявка отсюда не отправляется. На сайте форма будет работать как сейчас.</div>
+              <div class="fnote" id="fnote" role="status"></div>
               <div class="or">или</div>
               <a class="btn btn-wa" href="https://wa.me/79994770303" target="_blank" rel="noopener"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg> Написать на WhatsApp</a>
             </form>
@@ -1031,7 +1039,11 @@ let TOURS = [{"id": "83f2d00", "name": "Люкс Умра", "status": "soldout",
 const IMG = {"111.jpg": "assets/111-1700.jpg", "WhatsApp-Image-2025-03-04-at-23.06.03.png": "assets/WhatsApp-Image-2025-03-04-at-23.06.03-1500.jpg", "shutterstock_1456575845.jpg": "assets/shutterstock_1456575845-1280.jpg", "38827599-d2ba-5e20-bc38-f6a056a71c23.jpeg": "assets/38827599-d2ba-5e20-bc38-f6a056a71c23-1800.jpg", "i-1-1.webp": "assets/i-1-1-1400.jpg", "bez-nazvaniya-_31_.webp": "assets/bez-nazvaniya-_31_-1280.jpg", "img_9097-scaled.webp": "assets/img_9097-scaled-700.jpg"};
 const TEAM = [{"name": "Саид Мединский", "role": "руководитель группы", "photo": "assets/said-madinskiy.png"}, {"name": "Мухаммад Абу Усама", "role": "руководитель группы", "photo": "assets/muhammad-abu-usama.png"}, {"name": "Мухаммад Абу Абдуллах", "role": "руководитель группы", "photo": "assets/muhammad-abu-abdullah.png"}, {"name": "Тахир Мединский", "role": "преподаватель", "photo": "assets/tahir-madinskiy.png"}, {"name": "Мухаммад Шамгоди", "role": "преподаватель", "photo": "assets/muhammad-shamgodi.png"}, {"name": "Акрам Губденский", "role": "преподаватель", "photo": "assets/akram-gubdenskiy.png"}, {"name": "Абдульвали Мединский", "role": "преподаватель", "photo": "assets/abdulvali-madinskiy.png"}, {"name": "Исмаил Абу Мухаммад", "role": "преподаватель", "photo": "assets/ismail-abu-muhammad.png"}];
 const MGR = {"Сайхан": "assets/manager-saykhan-160.png", "Билял": "assets/manager-bilyal-160.png", "Курбан": "assets/manager-kurban-160.png"};
-const API = 'https://taubatour.ru/wp-json/tauba/v1/tours';
+const API = "https://taubatour.ru/wp-json/tauba/v1/tours";
+/* Форма заявки. На сайте её принимает модуль tauba-home и передаёт в Contact Form 7 —
+   оттуда заявка уходит в Telegram менеджерам, как с остальных форм сайта.
+   Пока live = false (макет, предпросмотр), заявка никуда не уходит. */
+const FORM = {"live": false, "note": "Это макет: заявка отсюда не отправляется. На сайте форма будет работать как сейчас."};
 const MANAGERS = [
   {name:'Сайхан', wa:'79277081920', photo:MGR['Сайхан']},
   {name:'Билял', wa:'79168393121', photo:MGR['Билял']},
@@ -1248,13 +1260,27 @@ document.addEventListener('click', e => {
 /* Клик по затемнению вокруг окна закрывает его. */
 document.querySelectorAll('dialog.sheet').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); }));
 
-document.getElementById('leadForm').addEventListener('submit', e => {
+const formOpened = Date.now();
+document.getElementById('leadForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const note = document.getElementById('fnote');
-  note.textContent = e.target.consent.checked
-    ? 'Это макет: заявка отсюда не отправляется. На сайте форма будет работать как сейчас.'
-    : 'Отметьте согласие на обработку персональных данных — без него заявку отправить нельзя.';
-  note.style.display = 'block';
+  const f = e.target, note = document.getElementById('fnote'), btn = f.querySelector('[type=submit]');
+  const say = (text, ok) => { note.textContent = text; note.classList.toggle('ok', !!ok); note.style.display = 'block'; };
+  if (!f['tt-name'].value.trim()) { f['tt-name'].focus(); return say('Напишите, как к вам обращаться.'); }
+  if (f['tt-phone'].value.replace(/\D/g, '').length < 10) { f['tt-phone'].focus(); return say('Проверьте номер телефона — в нём должно быть не меньше 10 цифр.'); }
+  if (!f['tt-consent'].checked) return say('Отметьте согласие на обработку персональных данных — без него заявку отправить нельзя.');
+  if (!FORM.live) return say(FORM.note);
+  const data = new FormData(f);
+  data.set('action', FORM.action);
+  data.set('t', String(Math.round((Date.now() - formOpened) / 1000)));
+  btn.disabled = true;
+  try {
+    const r = await fetch(FORM.url, {method: 'POST', body: data, credentials: 'same-origin'});
+    const j = await r.json();
+    if (j.ok) { f.reset(); say(j.message || 'Спасибо! Заявка отправлена — менеджер скоро свяжется с вами.', true); }
+    else say(j.message || 'Не получилось отправить заявку. Напишите нам в WhatsApp — ответим сразу.');
+  } catch (_) {
+    say('Не получилось отправить заявку — проверьте интернет или напишите нам в WhatsApp.');
+  } finally { btn.disabled = false; }
 });
 
 document.querySelectorAll('[data-img]').forEach(i => { i.src = IMG[i.dataset.img]; });
@@ -1330,7 +1356,8 @@ renderTours();
      Каабу, а паломники идут вокруг неё против часовой стрелки (таваф).
      Надписи — только Шахада, «الله أكبر», «سبحان الله», «الحمد لله» (шрифт Amiri).
      Пока сцена грузится (и если WebGL недоступен), виден готовый снимок этой же сцены. -->
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<!-- three.js 0.160.0: на сайте и по ссылке — копия из vendor/three, в однофайловом макете — jsdelivr. -->
+<script type="importmap">{"imports": {"three": "assets/three/three.module.min.js", "three/addons/": "assets/three/addons/"}}</script>
 <script type="module">
 import * as THREE from 'three';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';

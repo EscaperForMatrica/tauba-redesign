@@ -1104,7 +1104,13 @@ function card(t, i) {
   const left = t.hajj ? `<span class="mchip r gs">Предзапись</span>`
     : sold ? `<span class="mchip r red">Мест нет</span>`
     : `<span class="mchip r gs">через ${t.dep.days} ${plural(t.dep.days, ['день','дня','дней'])}</span>`;
-  return `<article class="tc rv${sold ? ' sold' : ''}">
+  // Те же атрибуты data-tt-*, что у тура на странице 2532 (копия, а не второй источник:
+  // править туры — только в «Туры Tauba»). В _elementor_data этой страницы их нет,
+  // поэтому плагин туров их не подхватит и в приложении туры не задвоятся.
+  const tt = [['tour', '1'], ['id', t.id], ['title', t.name], ['tier', t.tier], ['category', t.category],
+    ['price', t.price], ['dates', t.dates], ['days', t.days], ['meals', t.meals], ['status', t.status], ['badge', t.badge]]
+    .filter(([, v]) => v !== undefined && v !== null && v !== '').map(([k, v]) => `data-tt-${k}="${esc(v)}"`).join(' ');
+  return `<article class="tc rv${sold ? ' sold' : ''}" ${tt}>
     <button class="tc-media" type="button" data-more="${i}" aria-label="Подробнее: ${esc(t.tier)} ${esc(t.category)}, ${esc(t.dates)}">
       <img src="${esc(imgOf(t))}" alt="" loading="lazy">
       <span class="mchip l gs">${esc(t.tier)}</span>${left}

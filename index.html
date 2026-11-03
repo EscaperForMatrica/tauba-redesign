@@ -340,6 +340,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{
 .team{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 .mem{display:flex;align-items:center;gap:16px;padding:16px 20px 16px 16px;border-radius:999px;background:#fff;box-shadow:var(--shadow-rest)}
 .mem img{width:68px;height:68px;border-radius:50%;object-fit:cover;flex:none}
+.mem-ini{width:68px;height:68px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--grad);color:#fff;font:700 26px/1 var(--font)}
 .mem b{display:block;font:700 15.5px/20px var(--font);letter-spacing:-.01em}
 .mem span{font-size:13px;line-height:18px;color:var(--ink-soft)}
 
@@ -1226,9 +1227,12 @@ function openBook(i) {
   d.showModal();
 }
 
+/* Команда. На сайте список и фото берутся со страницы «Туры Tauba → Руководители и гиды»
+   (у кого нет фото — кружок с первой буквой имени). */
 function renderTeam() {
   document.getElementById('team-list').innerHTML = TEAM.map(m =>
-    `<div class="mem rv"><img src="${m.photo}" alt="" width="68" height="68"><div><b>${esc(m.name)}</b><span>${esc(m.role)}</span></div></div>`).join('');
+    `<div class="mem rv">${m.photo ? `<img src="${esc(m.photo)}" alt="" width="68" height="68">`
+      : `<span class="mem-ini" aria-hidden="true">${esc((m.name || '?').trim()[0])}</span>`}<div><b>${esc(m.name)}</b><span>${esc(m.role)}</span></div></div>`).join('');
 }
 
 document.addEventListener('click', e => {
